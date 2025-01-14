@@ -1,0 +1,80 @@
+---
+title: "Model1"
+output: html_document
+date: "2024-12-07"
+---
+
+```{r setup, include=FALSE}
+# Load necessary libraries
+library(tidyverse)
+library(glmnet)
+library(randomForest)
+library(MASS)
+```
+
+```{r}
+# Read in the test and train data
+train <- read.csv('train.csv')
+test <- read.csv('test.csv')
+ 
+# Extract response and predictors from training data
+y_train <- train$medv
+x_train <- as.matrix(train[, c("crim", "zn", "indus", "chas", "nox", "rm", "age", "dis", "rad", "tax", "ptratio", "black", "lstat")])
+ 
+# Extract predictors from test data
+x_test <- as.matrix(test[, c("crim", "zn", "indus", "chas", "nox", "rm", "age", "dis", "rad", "tax", "ptratio", "black", "lstat")])
+```
+ 
+```{r}
+# Load training and test data
+train <- read.csv('train.csv')
+test <- read.csv('test.csv')
+ 
+# Define null model: Only intercept
+null <- lm(medv ~ 1, data = train)
+
+# Define full model: Use all predictors in the training dataset
+full <- lm(medv ~ ., data = train)
+
+# Perform stepwise AIC selection
+sfit <- step(null, scope = list(lower = null, upper = full), direction = 'both')
+ 
+# View summary of the stepwise-selected model
+summary(sfit)
+```
+ 
+```{r}
+# Calculate fitted values and residuals for the polynomial model
+fitted_values <- predict(sfit, newdata = train)
+residuals <- train$medv - fitted_values
+ 
+# Plot Residuals vs. Fitted Values
+plot(fitted_values, residuals, 
+      xlab = "Fitted Values", 
+      ylab = "Residuals", 
+      main = "Residuals vs. Fitted Values",)
+abline(h = 0, col = "black", lwd = 1) # Add a horizontal line at y = 0
+res_fit <- lm(residuals ~ fitted_values)
+abline(res_fit, col = "red", lwd = 2, lty = 2) # Add line of best fit
+```
+ 
+```{r}
+# Make predictions on the test data using the stepwise-selected model
+stepwise_predictions <- predict(sfit, newdata = test)
+ 
+# Calculate MSE for the selected model on the training data
+stepwise_mse <- mean((predict(sfit, newdata = train) - train$medv)^2)
+```
+
+```{r}
+# Print stepwise AIC MSE
+cat("Stepwise AIC MSE:", stepwise_mse)
+```
+
+```{r}
+# Create a dataframe with final results
+my_submission <- tibble('id' = test$id, 'medv' = stepwise_predictions)
+
+# Save the file
+write_csv(my_submission, 'submission1.csv')
+```
